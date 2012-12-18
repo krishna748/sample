@@ -1,0 +1,92 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Create an EC2 instance running the RedHat Linux. The AMI is chosen based on the region in which the stack is run. This template creates an EC2 security group for the instance to give you SSH access.",
+
+  "Parameters" : {
+    "KeyName" : {
+  	  "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+		  "Type" : "String",
+		  "MinLength": "1",
+		  "MaxLength": "64",
+		  "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+		  "ConstraintDescription" : "Can contain only alphanumeric characters, spaces, dashes and underscores."
+		},
+		"InstanceType" : {
+		  "Description" : "EC2 instance type",
+		  "Type" : "String",
+		  "Default" : "t1.micro",
+		  "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+		  "ConstraintDescription" : "Must be a valid EC2 instance type."
+		},
+		"ServerName" : {
+		  "Description" : "Name of the Instance",
+		  "Type" : "String"
+		}
+  },
+	"Mappings" : {
+		"AWSInstanceType2Arch" : {
+		  "t1.micro"    : { "Arch" : "64" },
+		  "m1.small"    : { "Arch" : "64" },
+		  "m1.medium"   : { "Arch" : "64" },
+		  "m1.large"    : { "Arch" : "64" },
+		  "m1.xlarge"   : { "Arch" : "64" },
+		  "m2.xlarge"   : { "Arch" : "64" },
+		  "m2.2xlarge"  : { "Arch" : "64" },
+		  "m2.4xlarge"  : { "Arch" : "64" },
+		  "c1.medium"   : { "Arch" : "64" },
+		  "c1.xlarge"   : { "Arch" : "64" }
+		},
+
+		"AWSRegionArch2AMI" : {
+		  "us-east-1"      : { "32" : "ami-d258fbbb", "64" : "ami-cc5af9a5"},
+		  "us-west-2"      : { "32" : "ami-8625a9b6", "64" : "ami-8a25a9ba"},
+		  "us-west-1"      : { "32" : "ami-53f4ae16", "64" : "ami-51f4ae14"},
+		  "eu-west-1"      : { "32" : "ami-8ff2f7fb", "64" : "ami-8bf2f7ff"},
+		  "ap-southeast-1" : { "32" : "ami-a0e4a2f2", "64" : "ami-24e5a376"},
+		  "ap-northeast-1" : { "32" : "ami-4e53e04f", "64" : "ami-5453e055"},
+		  "sa-east-1"      : { "32" : "ami-4e07d953", "64" : "ami-4807d955"}
+		}
+	},
+	"Resources" : {
+	"Ec2Instance" : {
+	  "Type" : "AWS::EC2::Instance",
+	  "Properties" : {
+		"SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+		"KeyName" : { "Ref" : "KeyName" },
+		"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+							  { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
+		"InstanceType"   : { "Ref" : "InstanceType" },
+		"Tags": [
+					   { "Key" : "Name", "Value": {"Ref" : "ServerName"} }
+				]
+	  }
+	},
+
+    "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH access via port 22",
+        "SecurityGroupIngress" : [ 
+		{"IpProtocol" : "tcp","FromPort" : "22","ToPort" : "22","CidrIp" : "0.0.0.0/0"},
+		{"IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "CidrIp" : "0.0.0.0/0"}
+		]
+      }
+    }
+  },
+
+  "Outputs" : {
+    "InstanceId" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "Ec2Instance" }
+    },
+    "AZ" : {
+      "Description" : "Availability Zone of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "AvailabilityZone" ] }
+    },
+    "PublicIP" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicIp" ] }
+    }
+  }
+}
